@@ -2,6 +2,7 @@
 #define POP_ATTENTION_POP_ATTENTION_PLUGIN_H
 
 #include <QVector>
+#include <QSet>
 #include <QLabel>
 #include <pluginsiteminterface.h>
 #include <com_deepin_dde_daemon_dock.h>
@@ -37,6 +38,9 @@ private slots:
 private:
     QLabel *widget;
     QVector<DockEntryInter *> entries;
+    QSet<DockEntryInter *> hasAttention;
+
+    void updateWindowInfo(DockEntryInter *entry, const WindowInfoMap &infoMap);
 };
 
 #endif //POP_ATTENTION_POP_ATTENTION_PLUGIN_H

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "pop_attention_plugin.h"
 
 PopAttentionPlugin::PopAttentionPlugin(QObject *parent) : QObject(parent), widget(new QLabel("DP")) {
@@ -68,6 +69,7 @@ void PopAttentionPlugin::pluginStateSwitched() {
 void PopAttentionPlugin::onEntryAdded(const QDBusObjectPath &path, int unused) {
     auto entry = new DockEntryInter("com.deepin.dde.daemon.Dock", path.path(), QDBusConnection::sessionBus(), this);
     entries.push_back(entry);
+    updateWindowInfo(entry, entry->windowInfos());
     connect(entry, &DockEntryInter::WindowInfosChanged, this, &PopAttentionPlugin::onWindowInfoChanged);
 }
 
@@ -76,6 +78,7 @@ void PopAttentionPlugin::onEntryRemoved(const QString &id) {
         auto entry = entries[i];
         if (entry->id() == id) {
             entries.remove(i);
+            updateWindowInfo(entry, WindowInfoMap());
             entry->deleteLater();
             break;
         }
@@ -83,13 +86,19 @@ void PopAttentionPlugin::onEntryRemoved(const QString &id) {
 }
 
 void PopAttentionPlugin::onWindowInfoChanged(const WindowInfoMap &infoMap) {
-    if (pluginIsDisable()) {
-        return;
+    auto entry = qobject_cast<DockEntryInter *>(sender());
+    updateWindowInfo(entry, infoMap);
+}
+
+void PopAttentionPlugin::updateWindowInfo(DockEntryInter *entry, const WindowInfoMap &infoMap) {
+    bool modified;
+    if (std::any_of(infoMap.begin(), infoMap.end(), [](const WindowInfo &it) { return it.attention; })) {
+        modified = !hasAttention.contains(entry);
+        hasAttention.insert(entry);
+    } else {
+        modified = hasAttention.remove(entry);
     }
-    for (const auto &value : infoMap) {
-        if (value.attention) {
-            m_proxyInter->requestWindowAutoHide(this, "widget", false);
-            break;
-        }
+    if (modified && !pluginIsDisable()) {
+        m_proxyInter->requestWindowAutoHide(this, "widget", hasAttention.empty());
     }
 }
